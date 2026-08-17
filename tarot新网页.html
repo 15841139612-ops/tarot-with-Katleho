@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>曹丕你欠我的用什么还</title>
+<style>
+  :root{
+    --ink:#0e1626;        /* 深夜墨蓝底 */
+    --ink2:#16213a;
+    --gold:#c8a866;       /* 暖金 */
+    --gold-soft:#e6d5a8;
+    --cream:#efe7d4;
+    --line:rgba(200,168,102,0.28);
+    --red:#9c4a3c;        /* 逆位标记暖赭红 */
+    --serif:"Songti SC","Noto Serif SC","Georgia",serif;
+    --sans:"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+    /* 紫底暗金藤蔓牌背 */
+    --cardback:
+      radial-gradient(120% 120% at 50% 0%, rgba(168,136,200,.18), transparent 60%),
+      linear-gradient(160deg,#3a2456 0%,#2a1840 55%,#1e1030 100%);
+  }
+  /* 牌背藤蔓花纹(SVG,暗金),作为伪元素叠加 */
+  .vine{position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 88'><g fill='none' stroke='%23b9974e' stroke-width='1' opacity='0.55' stroke-linecap='round'><path d='M30 6 C30 22 30 66 30 82'/><path d='M30 20 C20 24 16 32 18 40 C24 38 28 32 30 26'/><path d='M30 30 C40 34 44 42 42 50 C36 48 32 42 30 36'/><path d='M30 46 C20 50 16 58 18 66 C24 64 28 58 30 52'/><path d='M30 58 C40 62 44 70 42 78 C36 76 32 70 30 64'/><circle cx='30' cy='6' r='2.2' fill='%23c8a866' stroke='none'/><circle cx='30' cy='82' r='2.2' fill='%23c8a866' stroke='none'/><circle cx='18' cy='40' r='1.6' fill='%23c8a866' stroke='none'/><circle cx='42' cy='50' r='1.6' fill='%23c8a866' stroke='none'/><circle cx='18' cy='66' r='1.6' fill='%23c8a866' stroke='none'/><circle cx='42' cy='78' r='1.6' fill='%23c8a866' stroke='none'/></g></svg>");
+    background-size:100% 100%;background-repeat:no-repeat;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:radial-gradient(120% 80% at 50% -10%, #1b2742 0%, var(--ink) 55%, #0a111e 100%);
+    color:var(--cream);font-family:var(--sans);
+    overflow:hidden;position:fixed;width:100%;height:100%;
+  }
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;padding:22px 18px;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+  .screen.active{display:flex;}
+  /* 搅牌页需要拦截手指做搅动,禁止页面自身滚动 */
+  #s-shuffle{overflow:hidden;touch-action:none;}
+  h1,h2{font-family:var(--serif);font-weight:500;letter-spacing:.04em;}
+  h1{font-size:26px;margin:0 0 4px;color:var(--gold-soft);}
+  .sub{font-size:13px;color:rgba(239,231,212,.55);margin-bottom:26px;line-height:1.7;}
+  .grow{flex:1;display:flex;flex-direction:column;justify-content:center;}
+  button{font-family:var(--sans);cursor:pointer;border:none;}
+  .btn{
+    background:linear-gradient(180deg,#1d2c49,#15203a);
+    color:var(--gold-soft);border:1px solid var(--line);
+    border-radius:12px;padding:16px;font-size:16px;width:100%;
+    margin-bottom:14px;transition:.15s;text-align:left;
+    display:flex;align-items:center;gap:12px;
+  }
+  .btn:active{transform:scale(.985);border-color:var(--gold);}
+  .btn .k{font-family:var(--serif);font-size:13px;color:var(--gold);opacity:.7;min-width:18px;}
+  .btn .d{font-size:12px;color:rgba(239,231,212,.5);font-weight:400;}
+  .btn-row{display:flex;flex-direction:column;}
+  .primary{
+    background:linear-gradient(180deg,var(--gold),#a8884a);color:#1a1207;
+    font-weight:600;justify-content:center;text-align:center;border:none;
+  }
+  .ghost{background:transparent;border:1px solid var(--line);justify-content:center;text-align:center;color:var(--gold-soft);}
+  input,textarea{
+    width:100%;background:rgba(0,0,0,.22);border:1px solid var(--line);
+    border-radius:10px;color:var(--cream);font-family:var(--sans);
+    font-size:16px;padding:13px;margin-bottom:12px;resize:none;
+  }
+  input:focus,textarea:focus{outline:none;border-color:var(--gold);}
+  label{font-size:13px;color:var(--gold-soft);display:block;margin:2px 0 7px;}
+  .hint{font-size:12px;color:rgba(239,231,212,.45);margin-bottom:16px;line-height:1.6;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .back{font-size:14px;color:var(--gold-soft);background:none;padding:6px 0;}
+  .step{font-size:12px;color:rgba(239,231,212,.5);font-family:var(--serif);letter-spacing:.1em;}
+
+  /* 搅合台 */
+  #shuffleMat{flex:1;position:relative;border:1px solid var(--line);border-radius:16px;
+    background:rgba(0,0,0,.18);overflow:hidden;margin-bottom:14px;}
+  .chip{position:absolute;width:46px;height:66px;border-radius:6px;
+    background:var(--cardback);
+    border:1px solid rgba(200,168,102,.5);
+    box-shadow:0 2px 6px rgba(0,0,0,.4);
+    will-change:transform;overflow:hidden;
+  }
+  .chip::after{content:"";position:absolute;inset:4px;border:1px solid rgba(200,168,102,.4);border-radius:3px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 88'><g fill='none' stroke='%23bfa055' stroke-width='1' opacity='0.7' stroke-linecap='round'><path d='M30 4 C30 24 30 64 30 84'/><path d='M30 14 C22 16 17 21 16 28 C15 34 18 38 22 38 C20 33 22 27 27 22 M30 14 C38 16 43 21 44 28 C45 34 42 38 38 38 C40 33 38 27 33 22'/><path d='M30 30 C21 33 15 39 14 47 C13 53 17 58 22 57 C19 51 22 44 28 39 M30 30 C39 33 45 39 46 47 C47 53 43 58 38 57 C41 51 38 44 32 39'/><path d='M30 48 C22 51 17 57 17 64 C17 70 21 73 25 72 C22 67 24 60 29 56 M30 48 C38 51 43 57 43 64 C43 70 39 73 35 72 C38 67 36 60 31 56'/><path d='M30 66 C24 69 20 74 20 79 M30 66 C36 69 40 74 40 79'/><circle cx='30' cy='4' r='2.6' fill='%23d8b96a' stroke='none'/><circle cx='30' cy='84' r='2.6' fill='%23d8b96a' stroke='none'/><circle cx='22' cy='38' r='1.5' fill='%23d8b96a' stroke='none'/><circle cx='38' cy='38' r='1.5' fill='%23d8b96a' stroke='none'/><circle cx='22' cy='57' r='1.5' fill='%23d8b96a' stroke='none'/><circle cx='38' cy='57' r='1.5' fill='%23d8b96a' stroke='none'/><circle cx='30' cy='44' r='2' fill='none' stroke='%23d8b96a' stroke-width='0.8'/></g></svg>");
+    background-size:100% 100%;background-repeat:no-repeat;}
+  .meter{font-size:12px;color:var(--gold);margin-bottom:8px;text-align:center;font-family:var(--serif);letter-spacing:.08em;}
+
+  /* 切牌:可视化牌摞(侧视) */
+  #cutWrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+  #cutDeck{position:relative;width:150px;cursor:pointer;}
+  .slab{height:2px;width:150px;border-radius:2px;
+    background:linear-gradient(90deg,rgba(200,168,102,.15),rgba(200,168,102,.55),rgba(200,168,102,.15));
+    position:relative;}
+  .slab::before{content:"";position:absolute;left:1px;right:1px;top:-1px;height:3px;
+    background:repeating-linear-gradient(90deg,#3a2456 0 4px,#2a1840 4px 8px);opacity:.6;}
+  #cutDeck.cutting .slab.hot{background:linear-gradient(90deg,transparent,var(--gold),transparent);height:3px;box-shadow:0 0 8px var(--gold);}
+  .cuthint{font-size:11px;color:var(--gold);font-family:var(--serif);text-align:center;margin-top:2px;height:14px;}
+  .deckcap{width:150px;height:18px;border-radius:7px 7px 3px 3px;
+    background:var(--cardback);
+    border:1px solid rgba(200,168,102,.55);border-bottom:none;}
+  .deckbase{width:150px;height:10px;border-radius:3px 3px 7px 7px;
+    background:#15203a;border:1px solid rgba(200,168,102,.4);border-top:none;}
+
+  /* 摊牌 */
+  #fan{flex:1;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;
+    gap:7px;justify-content:center;padding:6px 2px 20px;}
+  .facedown{width:42px;height:62px;border-radius:5px;
+    background:var(--cardback);
+    border:1px solid rgba(200,168,102,.45);transition:.15s;position:relative;overflow:hidden;}
+  .facedown::before{content:"";position:absolute;inset:3px;border-radius:3px;border:1px solid rgba(200,168,102,.35);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 88'><g fill='none' stroke='%23bfa055' stroke-width='1.5' opacity='0.7' stroke-linecap='round'><path d='M30 6 C30 26 30 62 30 82'/><path d='M30 18 C21 21 16 28 16 36 C20 35 26 30 29 24 M30 18 C39 21 44 28 44 36 C40 35 34 30 31 24'/><path d='M30 40 C20 43 14 51 15 60 C21 57 26 50 29 44 M30 40 C40 43 46 51 45 60 C39 57 34 50 31 44'/><path d='M30 64 C23 67 19 73 19 79 M30 64 C37 67 41 73 41 79'/><circle cx='30' cy='6' r='3' fill='%23d8b96a' stroke='none'/><circle cx='30' cy='82' r='3' fill='%23d8b96a' stroke='none'/><circle cx='30' cy='52' r='2.2' fill='none' stroke='%23d8b96a' stroke-width='1'/></g></svg>");
+    background-size:100% 100%;background-repeat:no-repeat;}
+  .facedown:active{transform:translateY(-4px);}
+  .facedown.picked{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 0 14px rgba(200,168,102,.5);transform:translateY(-6px);}
+  .facedown.picked::after{content:attr(data-n);position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+    background:var(--gold);color:#1a1207;font-size:10px;font-weight:700;border-radius:50%;width:17px;height:17px;
+    display:flex;align-items:center;justify-content:center;font-family:var(--serif);}
+
+  .promptbar{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:10px;
+    padding:11px 14px;margin-bottom:10px;font-size:14px;color:var(--gold-soft);}
+  .promptbar b{color:var(--gold);font-family:var(--serif);}
+
+  /* 结果 */
+  #result{flex:1;overflow-y:auto;padding-bottom:24px;}
+  .card{display:flex;gap:14px;align-items:flex-start;padding:14px;margin-bottom:12px;
+    background:linear-gradient(180deg,rgba(29,44,73,.6),rgba(21,32,58,.6));
+    border:1px solid var(--line);border-radius:12px;}
+  .face{min-width:60px;width:60px;height:90px;border-radius:7px;flex-shrink:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border:1px solid var(--gold);background:linear-gradient(180deg,#202f4d,#15203a);
+    position:relative;text-align:center;padding:4px;}
+  .face .ar{font-family:var(--serif);font-size:22px;color:var(--gold-soft);}
+  .face .suit{font-size:10px;color:rgba(239,231,212,.55);margin-top:4px;}
+  .face.rev{transform:rotate(180deg);}
+  .cardmeta{flex:1;}
+  .cardmeta .pos{font-size:12px;color:var(--gold);font-family:var(--serif);margin-bottom:3px;letter-spacing:.05em;}
+  .cardmeta .nm{font-size:18px;font-family:var(--serif);color:var(--cream);margin-bottom:4px;}
+  .cardmeta .or{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;
+    border:1px solid;}
+  .or.up{color:var(--gold-soft);border-color:var(--line);}
+  .or.dn{color:#e0a99c;border-color:rgba(156,74,60,.6);background:rgba(156,74,60,.12);}
+  .qtxt{font-size:12px;color:rgba(239,231,212,.5);margin-top:6px;line-height:1.5;}
+  .footbtns{display:flex;gap:12px;margin-top:6px;}
+  .footbtns .btn{margin:0;}
+</style>
+</head>
+<body>
+
+<!-- 0. 选模式 -->
+<section id="s-mode" class="screen active">
+  <h1>曹丕你欠我的用什么还</h1>
+  <p class="sub">韦特塔罗</p>
+  <div class="grow btn-row">
+    <button class="btn" onclick="chooseMode('three')">
+      <span class="k">三</span>
+      <span><div>三牌占卜</div><div class="d">输入一个问题,抽三张</div></span>
+    </button>
+    <button class="btn" onclick="chooseMode('spread')">
+      <span class="k">阵</span>
+      <span><div>自定义牌阵</div><div class="d">自己定牌数,逐个位置写问题,依次抽</div></span>
+    </button>
+  </div>
+</section>
+
+<!-- 1a. 三牌:输入问题 -->
+<section id="s-three" class="screen scrollable">
+  <div class="topbar"><button class="back" onclick="go('s-mode')">‹ 返回</button><span class="step">三牌 · 问题</span></div>
+  <h2>你想问什么</h2>
+  <div class="hint">告诉可安安你想问什么,和可安安建立链接。</div>
+  <textarea id="threeQ" rows="3" placeholder="例如:这篇论文会被 accept 吗?"></textarea>
+  <button class="btn primary" onclick="startThree()">开始洗牌</button>
+</section>
+
+<!-- 1b. 牌阵:定义 -->
+<section id="s-spread" class="screen scrollable">
+  <div class="topbar"><button class="back" onclick="go('s-mode')">‹ 返回</button><span class="step">牌阵 · 设置</span></div>
+  <h2>设计你的牌阵</h2>
+  <div class="hint">先定牌数,再给每个位置写上它代表的问题。</div>
+  <label>这个牌阵抽几张牌?</label>
+  <input id="spreadN" type="number" min="1" max="20" inputmode="numeric" placeholder="例如 5" oninput="buildPosInputs()">
+  <div id="posInputs"></div>
+  <button class="btn primary" id="spreadGo" style="display:none" onclick="startSpread()">开始洗牌</button>
+</section>
+
+<!-- 2. 搅合洗牌 -->
+<section id="s-shuffle" class="screen">
+  <div class="topbar"><button class="back" onclick="restart()">‹ 重来</button><span class="step">洗牌 · 搅合</span></div>
+  <h2>搅一搅</h2>
+  <div class="hint">搅合搅合!注入能量!洗而牌之!</div>
+  <div id="shuffleMat"></div>
+  <button class="btn primary" onclick="collectDeck()">收牌,洗好了</button>
+</section>
+
+<!-- 3. 切牌(可视化点击) -->
+<section id="s-cut" class="screen">
+  <div class="topbar"><button class="back" onclick="go('s-shuffle')">‹ 再搅搅</button><span class="step">洗牌 · 切牌</span></div>
+  <h2>切牌</h2>
+  <div class="hint">在这摞牌上点一下,就从那里切开,上面那叠会放到最下面。请切两次。</div>
+  <div id="cutWrap">
+    <div id="cutDeck"></div>
+    <div class="meter" id="cutLog">第 1 / 2 刀 · 在牌上点一下</div>
+  </div>
+</section>
+
+<!-- 4. 摊牌选牌 -->
+<section id="s-fan" class="screen">
+  <div class="topbar"><button class="back" onclick="go('s-cut')">‹ 返回</button><span class="step" id="fanStep">选牌</span></div>
+  <div id="fanPrompt" class="promptbar" style="display:none"></div>
+  <h2 id="fanTitle" style="font-size:18px;margin:0 0 10px">点牌</h2>
+  <div id="fan"></div>
+  <button class="btn primary" id="fanDone" onclick="finishPick()">完成,看牌</button>
+</section>
+
+<!-- 5. 结果 -->
+<section id="s-result" class="screen">
+  <div class="topbar"><button class="back" onclick="restart()">‹ 新的一次</button><span class="step">牌面</span></div>
+  <h2 id="resultTitle" style="margin:0 0 6px">牌面</h2>
+  <p class="sub" style="margin-bottom:16px">截而图之!把结果发给可安安 ε-(´∀｀; )</p>
+  <div id="result"></div>
+</section>
+
+<script>
+/* ---------- 韦特 78 张牌库 ---------- */
+const MAJOR=["愚者","魔术师","女祭司","皇后","皇帝","教皇","恋人","战车","力量","隐者","命运之轮","正义","倒吊人","死神","节制","恶魔","高塔","星星","月亮","太阳","审判","世界"];
+const SUITS=[["权杖","wands"],["圣杯","cups"],["宝剑","swords"],["星币","pentacles"]];
+const RANKS=["一","二","三","四","五","六","七","八","九","十","侍从","骑士","王后","国王"];
+function buildDeck(){
+  const d=[];
+  MAJOR.forEach((n,i)=>d.push({name:n,suit:"大阿卡那",glyph:roman(i),isMajor:true}));
+  SUITS.forEach(([cn,en])=>{
+    RANKS.forEach((r,i)=>d.push({name:cn+r,suit:cn,glyph:RANKS[i],isMajor:false}));
+  });
+  return d; // 78
+}
+function roman(n){const r=["0","I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIII","XIV","XV","XVI","XVII","XVIII","XIX","XX","XXI"];return r[n];}
+
+/* ---------- 状态 ---------- */
+let MODE=null;            // 'three' | 'spread'
+let positions=[];         // 牌阵每个位置的问题文本
+let threeQuestion="";
+let deckObjs=[];          // 牌堆:{card, rev}  顺序 = 当前牌序(从顶到底)
+let chips=[];             // 搅合台上的 DOM 牌
+let shuffleAmount=0;
+let cutCount=0;
+let pickTarget=3;         // 需要抽几张
+let picks=[];             // 选中的 facedown 元素顺序
+let drawnIndices=[];      // 对应 deck 顶部抽取
+
+/* ---------- 导航 ---------- */
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function chooseMode(m){MODE=m;go(m==='three'?'s-three':'s-spread');}
+function restart(){MODE=null;positions=[];threeQuestion="";deckObjs=[];chips=[];shuffleAmount=0;cutCount=0;picks=[];drawnIndices=[];document.getElementById('threeQ').value="";document.getElementById('spreadN').value="";document.getElementById('posInputs').innerHTML="";document.getElementById('spreadGo').style.display="none";go('s-mode');}
+
+/* ---------- 牌阵设置 ---------- */
+function buildPosInputs(){
+  const n=parseInt(document.getElementById('spreadN').value);
+  const box=document.getElementById('posInputs');
+  box.innerHTML="";
+  if(!n||n<1||n>20){document.getElementById('spreadGo').style.display="none";return;}
+  for(let i=1;i<=n;i++){
+    const wrap=document.createElement('div');
+    wrap.innerHTML=`<label>第 ${i} 张 代表的问题</label><input data-pos="${i}" placeholder="位置 ${i} 的含义/问题">`;
+    box.appendChild(wrap);
+  }
+  document.getElementById('spreadGo').style.display="block";
+}
+
+/* ---------- 进入洗牌 ---------- */
+function startThree(){
+  threeQuestion=document.getElementById('threeQ').value.trim();
+  pickTarget=3;
+  initDeckAndShuffle();
+}
+function startSpread(){
+  const inputs=[...document.querySelectorAll('#posInputs input')];
+  positions=inputs.map((el,i)=>el.value.trim()||('位置 '+(i+1)));
+  pickTarget=positions.length;
+  initDeckAndShuffle();
+}
+
+/* 初始随机排列(=牌堆原本的状态,仅此一次电脑随机),之后纯手动 */
+function initDeckAndShuffle(){
+  const cards=buildDeck();
+  // Fisher-Yates 一次性初始打乱 + 随机初始正逆位
+  for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}
+  deckObjs=cards.map(c=>({card:c,rev:Math.random()<0.5}));
+  shuffleAmount=0;cutCount=0;
+  go('s-shuffle');
+  setTimeout(buildMat,30);
+}
+
+/* ---------- 搅合台:纯手动 ---------- */
+function buildMat(){
+  const mat=document.getElementById('shuffleMat');
+  mat.innerHTML="";chips=[];
+  const W=mat.clientWidth,H=mat.clientHeight;
+  // 把每张牌散落在台面上,记录它在 deckObjs 里的 index
+  deckObjs.forEach((o,idx)=>{
+    const el=document.createElement('div');
+    el.className='chip';
+    const x=Math.random()*(W-46), y=Math.random()*(H-66), rot=(Math.random()*40-20);
+    el.dataset.idx=idx;
+    el.dataset.x=x;el.dataset.y=y;el.dataset.rot=rot;el.dataset.spin="0";
+    el.style.transform=`translate(${x}px,${y}px) rotate(${rot}deg)`;
+    if(o.rev) el.dataset.flipped="1";
+    mat.appendChild(el);chips.push(el);
+  });
+  attachStir(mat);
+}
+
+function attachStir(mat){
+  let active=false,lastX=0,lastY=0;
+  const onMove=(cx,cy)=>{
+    const rect=mat.getBoundingClientRect();
+    const px=cx-rect.left, py=cy-rect.top;
+    const dx=px-lastX, dy=py-lastY;
+    const dist=Math.hypot(dx,dy);
+    if(dist<1.5) return;
+    shuffleAmount+=dist;
+    // 找出手指附近的牌,推动它们 + 累计旋转
+    chips.forEach(el=>{
+      const ex=parseFloat(el.dataset.x)+23, ey=parseFloat(el.dataset.y)+33;
+      const d=Math.hypot(ex-px,ey-py);
+      if(d<60){
+        const force=(1-d/60);
+        // 位置被手指带动
+        let nx=parseFloat(el.dataset.x)+dx*force*0.9;
+        let ny=parseFloat(el.dataset.y)+dy*force*0.9;
+        nx=Math.max(0,Math.min(mat.clientWidth-46,nx));
+        ny=Math.max(0,Math.min(mat.clientHeight-66,ny));
+        // 旋转:手指划过方向带来的角变化
+        const dAng=(dx*0.6+dy*0.4)*force*1.4;
+        let rot=parseFloat(el.dataset.rot)+dAng;
+        let spin=parseFloat(el.dataset.spin)+Math.abs(dAng);
+        // 累计旋转超过 90° -> 翻转一次正逆位,计数清零
+        if(spin>=90){
+          const flipped=el.dataset.flipped==="1";
+          el.dataset.flipped=flipped?"0":"1";
+          spin-=90;
+        }
+        el.dataset.x=nx;el.dataset.y=ny;el.dataset.rot=rot;el.dataset.spin=spin;
+        el.style.transform=`translate(${nx}px,${ny}px) rotate(${rot}deg)`;
+        // 把被搅动的牌移到 DOM 末尾 = 改变叠压/牌序
+        mat.appendChild(el);
+      }
+    });
+    lastX=px;lastY=py;
+  };
+  const start=(cx,cy)=>{active=true;const r=mat.getBoundingClientRect();lastX=cx-r.left;lastY=cy-r.top;};
+  const end=()=>{active=false;};
+  mat.ontouchstart=e=>{const t=e.touches[0];start(t.clientX,t.clientY);};
+  mat.ontouchmove=e=>{if(!active)return;e.preventDefault();const t=e.touches[0];onMove(t.clientX,t.clientY);};
+  mat.ontouchend=end;
+  mat.onmousedown=e=>start(e.clientX,e.clientY);
+  mat.onmousemove=e=>{if(active)onMove(e.clientX,e.clientY);};
+  mat.onmouseup=end;mat.onmouseleave=end;
+}
+
+/* 收牌:把台面上的牌,按当前 DOM 叠放顺序(后搅的在上)收成新牌序 */
+function collectDeck(){
+  if(shuffleAmount<300){
+    if(!confirm('搅得还不太够('+Math.round(shuffleAmount)+'),确定要收牌吗?')) return;
+  }
+  const mat=document.getElementById('shuffleMat');
+  const order=[...mat.querySelectorAll('.chip')]; // DOM 顺序:先=底,后=顶
+  // 顶在最后,所以反过来让"最后搅动的"成为牌堆顶部
+  order.reverse();
+  const newDeck=order.map(el=>{
+    const idx=parseInt(el.dataset.idx);
+    const o=deckObjs[idx];
+    return {card:o.card, rev: el.dataset.flipped==="1"};
+  });
+  deckObjs=newDeck;
+  go('s-cut');
+  cutCount=0;
+  updateCutLog();
+  renderCutDeck();
+}
+
+/* ---------- 切牌(可视化) ---------- */
+function renderCutDeck(){
+  const wrap=document.getElementById('cutDeck');
+  wrap.innerHTML="";
+  const N=deckObjs.length;
+  // 顶盖
+  const cap=document.createElement('div');cap.className='deckcap';wrap.appendChild(cap);
+  // 中间:每张牌一条细板,从上(顶)到下(底)
+  for(let i=0;i<N;i++){
+    const s=document.createElement('div');
+    s.className='slab';s.dataset.k=i; // k=从顶往下第几张之后的切点
+    wrap.appendChild(s);
+  }
+  const base=document.createElement('div');base.className='deckbase';wrap.appendChild(base);
+  const hint=document.createElement('div');hint.className='cuthint';hint.id='cutHotHint';wrap.appendChild(hint);
+
+  const slabs=[...wrap.querySelectorAll('.slab')];
+  const clearHot=()=>{slabs.forEach(s=>s.classList.remove('hot'));document.getElementById('cutHotHint').textContent="";};
+  const showHotAt=(y)=>{
+    wrap.classList.add('cutting');
+    let nearest=null,best=1e9;
+    slabs.forEach(s=>{const r=s.getBoundingClientRect();const cy=r.top+r.height/2;const d=Math.abs(cy-y);if(d<best){best=d;nearest=s;}});
+    slabs.forEach(s=>s.classList.remove('hot'));
+    if(nearest){nearest.classList.add('hot');const k=parseInt(nearest.dataset.k)+1;
+      document.getElementById('cutHotHint').textContent='在这里切 · 上面 '+k+' 张';}
+    return nearest;
+  };
+  wrap.ontouchmove=e=>{e.preventDefault();showHotAt(e.touches[0].clientY);};
+  wrap.ontouchend=e=>{const t=(e.changedTouches&&e.changedTouches[0]);if(t){const s=showHotAt(t.clientY);if(s)applyCut(parseInt(s.dataset.k)+1);}clearHot();wrap.classList.remove('cutting');};
+  wrap.onmousemove=e=>showHotAt(e.clientY);
+  wrap.onmouseleave=clearHot;
+  wrap.onclick=e=>{const s=showHotAt(e.clientY);if(s)applyCut(parseInt(s.dataset.k)+1);clearHot();wrap.classList.remove('cutting');};
+}
+function applyCut(n){
+  if(n<1||n>=deckObjs.length) return;
+  if(cutCount>=2) return;
+  const top=deckObjs.slice(0,n);
+  const bottom=deckObjs.slice(n);
+  // 切出的上面 n 张,叠到最下面
+  deckObjs=bottom.concat(top);
+  cutCount++;
+  if(cutCount>=2){
+    updateCutLog();
+    setTimeout(toFan,260); // 切满两刀,自动摊牌
+    return;
+  }
+  updateCutLog();
+  renderCutDeck();
+}
+function updateCutLog(){
+  const el=document.getElementById('cutLog');
+  if(cutCount>=2){el.textContent='切好了,正在摊牌…';}
+  else{el.textContent='第 '+(cutCount+1)+' / 2 刀 · 在牌上点一下';}
+}
+
+/* ---------- 摊牌 ---------- */
+function toFan(){
+  picks=[];drawnIndices=[];
+  const fan=document.getElementById('fan');
+  fan.innerHTML="";
+  // 78 张背面朝上,平铺成多行
+  deckObjs.forEach((o,i)=>{
+    const el=document.createElement('div');
+    el.className='facedown';
+    el.dataset.i=i;
+    el.onclick=()=>togglePick(el);
+    fan.appendChild(el);
+  });
+  // 牌阵模式逐位抽;三牌一次选3
+  if(MODE==='spread'){
+    spreadStep=0;
+    document.getElementById('fanPrompt').style.display='block';
+    showSpreadPrompt();
+    document.getElementById('fanDone').textContent='下一张';
+  }else{
+    document.getElementById('fanPrompt').style.display='none';
+    document.getElementById('fanTitle').textContent='点 3 张牌';
+    document.getElementById('fanStep').textContent='选牌 0/3';
+    document.getElementById('fanDone').textContent='完成,看牌';
+  }
+  go('s-fan');
+}
+
+let spreadStep=0;
+function showSpreadPrompt(){
+  document.getElementById('fanPrompt').innerHTML='<b>第 '+(spreadStep+1)+' 张</b> · '+positions[spreadStep];
+  document.getElementById('fanTitle').textContent='为这个位置点一张牌';
+  document.getElementById('fanStep').textContent='选牌 '+spreadStep+'/'+pickTarget;
+}
+
+function togglePick(el){
+  if(el.classList.contains('locked')) return;
+  if(MODE==='spread'){
+    // 逐位:点一张即选定该位置
+    if(el.classList.contains('picked')) return;
+    el.classList.add('picked','locked');
+    el.dataset.n=spreadStep+1;
+    picks.push(el);
+    drawnIndices.push(parseInt(el.dataset.i));
+    spreadStep++;
+    if(spreadStep<pickTarget){showSpreadPrompt();}
+    else{finishPick();}
+  }else{
+    if(el.classList.contains('picked')){
+      el.classList.remove('picked');picks=picks.filter(p=>p!==el);
+    }else{
+      if(picks.length>=3) return;
+      el.classList.add('picked');picks.push(el);el.dataset.n=picks.length;
+    }
+    // 重新编号
+    picks.forEach((p,k)=>p.dataset.n=k+1);
+    document.getElementById('fanStep').textContent='选牌 '+picks.length+'/3';
+  }
+}
+
+function finishPick(){
+  if(MODE==='three'){
+    if(picks.length<3){alert('再选 '+(3-picks.length)+' 张');return;}
+    drawnIndices=picks.map(p=>parseInt(p.dataset.i));
+  }
+  renderResult();
+}
+
+/* ---------- 结果 ---------- */
+function renderResult(){
+  const box=document.getElementById('result');
+  box.innerHTML="";
+  document.getElementById('resultTitle').textContent= MODE==='three' ? '三牌' : '牌阵 · '+pickTarget+'张';
+  drawnIndices.forEach((di,k)=>{
+    const o=deckObjs[di];
+    const rev=o.rev;
+    const posLabel = MODE==='three' ? ('第 '+(k+1)+' 张') : ('第 '+(k+1)+' 张');
+    const posQ = MODE==='three' ? '' : positions[k];
+    const div=document.createElement('div');
+    div.className='card';
+    div.innerHTML=`
+      <div class="face ${rev?'rev':''}">
+        <div class="ar">${o.card.glyph}</div>
+        <div class="suit">${o.card.suit}</div>
+      </div>
+      <div class="cardmeta">
+        <div class="pos">${posLabel}</div>
+        <div class="nm">${o.card.name}</div>
+        <span class="or ${rev?'dn':'up'}">${rev?'逆位':'正位'}</span>
+        ${posQ?`<div class="qtxt">${posQ}</div>`:''}
+      </div>`;
+    box.appendChild(div);
+  });
+  go('s-result');
+}
+</script>
+</body>
+</html>
